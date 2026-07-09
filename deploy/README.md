@@ -16,7 +16,7 @@
 | `apply_patch.mjs` | 注入脚本：把 `zh_patch.mjs` 深合并进官方 zh chunk，并可选修正 `index.html` 的 `lang`。 |
 | `patch_create_component.py` | 组件补丁脚本：把 `create-Cemunwmn.js` 内联的 62 条英文 UI 默认值改为中文。 |
 | `Dockerfile` | 多阶段构建：依次注入 zh chunk、修补 create 组件、注入 tooltip、覆盖进官方镜像并改 `lang="zh"`。 |
-| `inject_tooltips.html` | CSS+JS 片段：注入 `index.html`，用 MutationObserver 给调查员 4 项技能数值（意志力/智力/战斗/敏捷）添加 hover 中文 tooltip。 |
+| `inject_tooltips.html` | CSS+JS 片段：注入 `index.html`，用 MutationObserver 给调查员技能/资源数值添加 hover 中文 tooltip，并实时翻译侧边栏游戏日志（played/draws/discovered 等后端生成的英文消息）。 |
 
 > 仓库**不提交**任何 `.js` bundle 编译产物，镜像构建时才生成修补后的 chunk。
 
@@ -57,3 +57,5 @@ python3 deploy/patch_create_component.py out/create-Cemunwmn.js out/create-Cemun
 - `docker-compose.yml` 已改为使用 `arkham-horror-zh:latest`。
 - 本地服务已验证 HTTP 200，`create` 页面"高级规则配置/预设/第一章规则"等已显示中文。
 - 调查员技能数值（左下角 4 个彩色数字）hover 时显示中文 tooltip：意志力/智力/战斗/敏捷。
+- 资源池数值（资源/线索/伤害/恐怖）hover 时显示中文 tooltip。
+- 侧边栏游戏日志实时翻译：打出了/抽取/发现了/展示了/吞噬了等 20+ 种后端消息模式。
