@@ -168,6 +168,7 @@
     [/(\d+) clues\b/g, "$1 \u4E2A\u7EBF\u7D22"],
     [/(\d+) clue\b/g, "$1 \u4E2A\u7EBF\u7D22"],
     [/(\d+) cards\b/g, "$1 \u5F20\u724C"],
+    [/(\d+) card\b/g, "$1 \u5F20\u724C"],
     [/ from the game/g, " \u4ECE\u6E38\u620F\u4E2D\u79FB\u9664"],
     // Phrases
     [/must discard down to /g, "\u5FC5\u987B\u5F03\u81F3 "],
@@ -183,6 +184,16 @@
     // Infestation / Predation
     [/ drawn during Infestation Test/g, " \u5728\u5BC4\u751F\u68C0\u5B9A\u4E2D\u62BD\u51FA"],
     [/ drawn during predation Test/g, " \u5728\u63A0\u593A\u68C0\u5B9A\u4E2D\u62BD\u51FA"],
+    // Choice button labels (all-caps, seen in scenario choice prompts)
+    [/THE LEAD INVESTIGATOR TAKES (\d+) HORROR/g, "\u9996\u5E2D\u8C03\u67E5\u5458\u53D7\u5230 $1 \u70B9\u6050\u6016"],
+    [/EACH INVESTIGATOR DISCARDS (\d+) CARDS? AT RANDOM FROM THEIR HAND/g, "\u6BCF\u540D\u8C03\u67E5\u5458\u968F\u673A\u4ECE\u624B\u724C\u4E2D\u5F03\u7F6E $1 \u5F20\u5361\u724C"],
+    [/THE LEAD INVESTIGATOR/g, "\u9996\u5E2D\u8C03\u67E5\u5458"],
+    [/EACH INVESTIGATOR/g, "\u6BCF\u540D\u8C03\u67E5\u5458"],
+    [/TAKES (\d+) HORROR/g, "\u53D7\u5230 $1 \u70B9\u6050\u6016"],
+    [/DISCARDS (\d+) CARDS? AT RANDOM FROM THEIR HAND/g, "\u968F\u673A\u4ECE\u624B\u724C\u4E2D\u5F03\u7F6E $1 \u5F20\u5361\u724C"],
+    [/AT RANDOM FROM THEIR HAND/g, "\u968F\u673A\u4ECE\u624B\u724C\u4E2D"],
+    [/FROM THEIR HAND/g, "\u4ECE\u4ED6\u4EEC\u7684\u624B\u724C\u4E2D"],
+    [/AT RANDOM/g, "\u968F\u673A"],
   ];
 
   function translateText(text) {
@@ -209,8 +220,38 @@
     }
   }
 
+  // Translate choice buttons (scenario prompts, card abilities, etc.)
+  function processChoiceButton(btn) {
+    if (btn.dataset.ahChoiceTr) return;
+    // Don't translate if it contains child elements (likely card icons, spans, etc.)
+    if (btn.children.length > 0) {
+      var walker = document.createTreeWalker(btn, NodeFilter.SHOW_TEXT, null);
+      var node;
+      while ((node = walker.nextNode())) {
+        var original = node.textContent;
+        if (!/[a-zA-Z]/.test(original)) continue;
+        var translated = translateText(original);
+        if (translated !== original) {
+          node.textContent = translated;
+        }
+      }
+    } else {
+      var original = btn.textContent;
+      if (!/[a-zA-Z]/.test(original)) return;
+      var translated = translateText(original);
+      if (translated !== original) {
+        btn.textContent = translated;
+      }
+    }
+    btn.dataset.ahChoiceTr = "1";
+  }
+
   function processAll() {
     document.querySelectorAll(".log-entry").forEach(processEntry);
+    // Choice buttons in modals / prompts (all-caps, button-like elements)
+    document.querySelectorAll(
+      '.choices .button, .choices > *, .choice-options > *, .options > *, .choice, .choice-button, .prompt .button, .modal .button, .v-btn, button'
+    ).forEach(processChoiceButton);
   }
 
   // Debounce to avoid processing on every single DOM mutation
