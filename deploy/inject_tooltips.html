@@ -1,0 +1,145 @@
+<style>
+/* Override overflow so tooltips can show outside the stats bar */
+.ah-stats-tooltip .stats { overflow: visible !important; }
+.ah-stats-tooltip .stats .willpower { border-bottom-left-radius: 5px; }
+.ah-stats-tooltip .stats .agility { border-bottom-right-radius: 5px; }
+
+/* Tooltip styles */
+.ah-tip { position: relative; cursor: help; }
+.ah-tip-label {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.88);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+  z-index: 99999;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  --ah-arrow-x: 50%;
+}
+.ah-tip-label::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: var(--ah-arrow-x, 50%);
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(0, 0, 0, 0.88);
+}
+.ah-tip:hover .ah-tip-label { opacity: 1; }
+</style>
+<script>
+(function () {
+  // Skill stats tooltips (top row: willpower/intellect/combat/agility)
+  var skillTips = {
+    willpower: "\u610F\u5FD7\u529B (Willpower) \u2014 \u6050\u6016\u68C0\u5B9A\u3001\u6CD5\u672F\u6548\u679C",
+    intellect: "\u667A\u529B (Intellect) \u2014 \u8C03\u67E5\u5730\u70B9\u83B7\u53D6\u7EBF\u7D22",
+    combat: "\u6218\u6597 (Combat) \u2014 \u4E0E\u654C\u4EBA\u6218\u6597",
+    agility: "\u654F\u6377 (Agility) \u2014 \u95EA\u907F\u654C\u4EBA"
+  };
+  // Resource pool tooltips (bottom row: resource/clue/health/sanity)
+  var poolTips = {
+    "poolItem-resource": "\u8D44\u6E90 (Resources) \u2014 \u6BCF\u56DE\u5408\u8D44\u6E90\u9636\u6BB5\u53EF\u70B9\u51FB+1",
+    "poolItem-clue": "\u7EBF\u7D22 (Clues) \u2014 \u8C03\u67E5\u5730\u70B9\u83B7\u5F97\u7684\u7EBF\u7D22",
+    "poolItem-health": "\u4F24\u5BB3 (Damage) \u2014 \u5F53\u524D\u53D7\u5230\u7684\u4F24\u5BB3\u6570",
+    "poolItem-sanity": "\u6050\u6016 (Horror) \u2014 \u5F53\u524D\u53D7\u5230\u7684\u6050\u6016\u6570"
+  };
+
+  function addTip(el, text) {
+    if (el.classList.contains("ah-tip")) return;
+    el.classList.add("ah-tip");
+    var label = document.createElement("span");
+    label.className = "ah-tip-label";
+    label.textContent = text;
+    el.appendChild(label);
+
+    // Fix positioning on hover to prevent overflow
+    el.addEventListener("mouseenter", function () {
+      // Force a reflow to get accurate dimensions
+      var labelRect = label.getBoundingClientRect();
+      var parentRect = el.getBoundingClientRect();
+      var vw = window.innerWidth;
+
+      if (labelRect.left < 4) {
+        // Tooltip goes off left edge: pin to left of parent
+        label.style.left = "0";
+        label.style.right = "";
+        label.style.transform = "none";
+        // Position arrow at parent's center
+        var arrowPx = parentRect.width / 2;
+        label.style.setProperty("--ah-arrow-x", arrowPx + "px");
+      } else if (labelRect.right > vw - 4) {
+        // Tooltip goes off right edge: pin to right of parent
+        label.style.left = "auto";
+        label.style.right = "0";
+        label.style.transform = "none";
+        // Position arrow at parent's center from the right
+        var arrowPxR = parentRect.width / 2;
+        label.style.setProperty("--ah-arrow-x", "calc(100% - " + arrowPxR + "px)");
+      } else {
+        // Reset to centered
+        label.style.left = "50%";
+        label.style.right = "";
+        label.style.transform = "translateX(-50%)";
+        label.style.setProperty("--ah-arrow-x", "50%");
+      }
+    });
+  }
+
+  function addTips() {
+    // Skill stats
+    document.querySelectorAll(".stats").forEach(function (stats) {
+      if (stats.dataset.ahDone) return;
+      stats.dataset.ahDone = "1";
+      Object.keys(skillTips).forEach(function (cls) {
+        stats.querySelectorAll("." + cls).forEach(function (el) {
+          addTip(el, skillTips[cls]);
+        });
+      });
+    });
+    // Resource pool items
+    document.querySelectorAll(".resources").forEach(function (res) {
+      if (res.dataset.ahDone) return;
+      res.dataset.ahDone = "1";
+      Object.keys(poolTips).forEach(function (cls) {
+        res.querySelectorAll("." + cls).forEach(function (el) {
+          addTip(el, poolTips[cls]);
+        });
+      });
+    });
+  }
+
+  // Add class to body to activate CSS overrides
+  function activate() {
+    if (!document.body.classList.contains("ah-stats-tooltip")) {
+      document.body.classList.add("ah-stats-tooltip");
+    }
+    addTips();
+  }
+
+  if (document.body) {
+    activate();
+  } else {
+    document.addEventListener("DOMContentLoaded", activate);
+  }
+
+  // Watch for DOM changes (SPA navigation, investigator switches, etc.)
+  var observer = new MutationObserver(function () { activate(); });
+  if (document.body) {
+    observer.observe(document.body, { childList: true, subtree: true });
+  } else {
+    document.addEventListener("DOMContentLoaded", function () {
+      activate();
+      observer.observe(document.body, { childList: true, subtree: true });
+    });
+  }
+})();
+</script>
