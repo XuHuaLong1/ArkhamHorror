@@ -143,3 +143,106 @@
   }
 })();
 </script>
+<script>
+(function () {
+  "use strict";
+  // Game log message translation
+  // Backend (Haskell) generates plain-text log messages like:
+  //   "{investigator} played {card}"
+  //   "{investigator} draws {token} chaos token"
+  //   "{investigator} discovered 1 clue"
+  // These are NOT i18n keys, so we translate them via DOM text-node replacement.
+
+  var rules = [
+    // Action verbs (surrounded by spaces to avoid matching substrings)
+    [/ played /g, " \u6253\u51FA\u4E86 "],
+    [/ draws /g, " \u62BD\u53D6 "],
+    [/ drew /g, " \u62BD\u51FA\u4E86 "],
+    [/ discovered /g, " \u53D1\u73B0\u4E86 "],
+    [/ reveals /g, " \u5C55\u793A\u4E86 "],
+    [/ devours /g, " \u541E\u566C\u4E86 "],
+    [/ removed all copies of /g, " \u79FB\u9664\u4E86\u6240\u6709 "],
+    // Objects
+    [/ chaos tokens/g, " \u6DF7\u6C8C\u4EE4\u724C"],
+    [/ chaos token/g, " \u6DF7\u6C8C\u4EE4\u724C"],
+    [/(\d+) clues\b/g, "$1 \u4E2A\u7EBF\u7D22"],
+    [/(\d+) clue\b/g, "$1 \u4E2A\u7EBF\u7D22"],
+    [/(\d+) cards\b/g, "$1 \u5F20\u724C"],
+    [/ from the game/g, " \u4ECE\u6E38\u620F\u4E2D\u79FB\u9664"],
+    // Phrases
+    [/must discard down to /g, "\u5FC5\u987B\u5F03\u81F3 "],
+    // Record / Forgot
+    [/^Record "/g, "\u8BB0\u5F55 \""],
+    [/^Forgot "/g, "\u9057\u5FD8 \""],
+    // Banished
+    [/was \\"?Banished\\"?/g, "\u88AB\u201C\u653E\u9010\u201D"],
+    [/is \\"?banished\\"?/g, "\u88AB\u201C\u653E\u9010\u201D"],
+    // Coin
+    [/The coin lands on heads\.\s+Treating token as /g, "\u786C\u5E01\u6B63\u9762\u671D\u4E0A\u3002\u5C06\u4EE4\u724C\u89C6\u4E3A "],
+    [/The coin lands on tails\.\s+Treating token as /g, "\u786C\u5E01\u53CD\u9762\u671D\u4E0A\u3002\u5C06\u4EE4\u724C\u89C6\u4E3A "],
+    // Infestation / Predation
+    [/ drawn during Infestation Test/g, " \u5728\u5BC4\u751F\u68C0\u5B9A\u4E2D\u62BD\u51FA"],
+    [/ drawn during predation Test/g, " \u5728\u63A0\u593A\u68C0\u5B9A\u4E2D\u62BD\u51FA"],
+  ];
+
+  function translateText(text) {
+    var result = text;
+    for (var i = 0; i < rules.length; i++) {
+      result = result.replace(rules[i][0], rules[i][1]);
+    }
+    return result;
+  }
+
+  function processEntry(entry) {
+    if (entry.dataset.ahLogTr) return;
+    var body = entry.querySelector(".message-body");
+    if (!body) return;
+    var walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT, null);
+    var node;
+    while ((node = walker.nextNode())) {
+      var original = node.textContent;
+      var translated = translateText(original);
+      if (translated !== original) {
+        node.textContent = translated;
+      }
+    }
+    entry.dataset.ahLogTr = "1";
+  }
+
+  function processAll() {
+    document.querySelectorAll(".log-entry").forEach(processEntry);
+  }
+
+  function startObserver() {
+    var target = document.querySelector(".game-log ul") || document.querySelector(".game-log");
+    if (target) {
+      processAll();
+      var obs = new MutationObserver(function (mutations) {
+        for (var i = 0; i < mutations.length; i++) {
+          var added = mutations[i].addedNodes;
+          for (var j = 0; j < added.length; j++) {
+            var node = added[j];
+            if (node.nodeType === 1) {
+              if (node.classList && node.classList.contains("log-entry")) {
+                processEntry(node);
+              } else if (node.querySelectorAll) {
+                node.querySelectorAll(".log-entry").forEach(processEntry);
+              }
+            }
+          }
+        }
+      });
+      obs.observe(target, { childList: true, subtree: true });
+    } else {
+      // Game log not yet in DOM; wait for it
+      setTimeout(startObserver, 1000);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", startObserver);
+  } else {
+    startObserver();
+  }
+})();
+</script>
