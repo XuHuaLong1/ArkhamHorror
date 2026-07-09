@@ -194,49 +194,43 @@
   }
 
   function processEntry(entry) {
-    if (entry.dataset.ahLogTr) return;
     var body = entry.querySelector(".message-body");
     if (!body) return;
     var walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT, null);
     var node;
     while ((node = walker.nextNode())) {
       var original = node.textContent;
+      // Skip if no English letters (already translated or pure numbers/symbols)
+      if (!/[a-zA-Z]/.test(original)) continue;
       var translated = translateText(original);
       if (translated !== original) {
         node.textContent = translated;
       }
     }
-    entry.dataset.ahLogTr = "1";
   }
 
   function processAll() {
     document.querySelectorAll(".log-entry").forEach(processEntry);
   }
 
-  function startObserver() {
-    var target = document.querySelector(".game-log ul") || document.querySelector(".game-log");
-    if (target) {
+  // Debounce to avoid processing on every single DOM mutation
+  var debounceTimer = null;
+  function debouncedProcessAll() {
+    if (debounceTimer) return;
+    debounceTimer = setTimeout(function () {
+      debounceTimer = null;
       processAll();
-      var obs = new MutationObserver(function (mutations) {
-        for (var i = 0; i < mutations.length; i++) {
-          var added = mutations[i].addedNodes;
-          for (var j = 0; j < added.length; j++) {
-            var node = added[j];
-            if (node.nodeType === 1) {
-              if (node.classList && node.classList.contains("log-entry")) {
-                processEntry(node);
-              } else if (node.querySelectorAll) {
-                node.querySelectorAll(".log-entry").forEach(processEntry);
-              }
-            }
-          }
-        }
-      });
-      obs.observe(target, { childList: true, subtree: true });
-    } else {
-      // Game log not yet in DOM; wait for it
-      setTimeout(startObserver, 1000);
-    }
+    }, 150);
+  }
+
+  // Observe document.body so we survive sidebar toggle (Vue destroy/recreate)
+  function startObserver() {
+    processAll();
+    var obs = new MutationObserver(function () {
+      debouncedProcessAll();
+    });
+    var target = document.body || document.documentElement;
+    obs.observe(target, { childList: true, subtree: true });
   }
 
   if (document.readyState === "loading") {
